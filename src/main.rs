@@ -1,17 +1,20 @@
 #[macro_use] 
+
+
 extern crate log;
 extern crate env_logger;
 extern crate messaging_udp;
 extern crate clap;
 
+mod tardigrade;
+
 use chrono::Local;
-use clap::{Arg, App};
+use clap::{App, Arg};
 use env_logger::Builder;
 use log::LevelFilter;
 use messaging_udp::messages;
-use rand::prelude::*;
+//use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
-use std::io;
 use std::io::*;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -23,6 +26,7 @@ enum Protocol {
     Control,
     Propped,
     Thunderella,
+    Tardigrade,
 }
 
 fn send_prepare(round: u32, val: messages::Val, send_msg: &mpsc::Sender<messages::Message>)  {
@@ -141,21 +145,20 @@ fn graded_consensus(send_msg: &mpsc::Sender<messages::Message>, recv_msg: &mut m
 //fn async_byzantine_agreement(send_msg: &mpsc::Sender<String>, recv_msg: &mut mpsc::Receiver<String>, val: messages::Val, round: u32, n: u32, t_s: u32) -> (messages::Val, u32) {
 //}
 
-fn parse_sleep_command(command: &str) -> Result<Vec<String>, Self::Err> {
+//fn parse_sleep_command(command: &str) -> Result<Vec<String>, Self::Err> {
+//}
 
-}
+//fn parse_wake_command(command: &str) -> Result<Vec<String>, Self::Err> {
+//}
 
-fn parse_wake_command(command: &str) -> Result<Vec<String>, Self::Err> {
-}
-
-fn confirmation_thread(send_msg: &mpsc::Sender<messages::Message>, confirmation_time: i32) {
+fn confirmation_thread(send_msg: &mpsc::Sender<messages::Message>, confirmation_time: u64) {
     let mut round = 1;
     loop {
-        let sleep_time = time::Duration::from_secs(confirmation_time);
+        let sleep_time = Duration::from_secs(confirmation_time);
         thread::sleep(sleep_time);
         
         let msg = messages::Message::Prepare {
-            block: round,
+            k: round,
             b: messages::Val::Zero,
         };
         messages::send_message(msg, send_msg);
@@ -170,21 +173,21 @@ fn run_async_agreement(mut messaging_obj: messages::MessagingObjects) {
 //TODO catch latency messages before putting them into channel
 //TODO set up keeping track of how much latency for each other person in LAN
 //TODO implement latency on specific messages based on src address
-fn run_control_server(mut messaging_obj: messages::MessagingObjects, confirmation_time: i32) {
+fn run_control_server(mut messaging_obj: messages::MessagingObjects, confirmation_time: u64) {
     // TODO spin off coinflip mechanism
     // This is the only piece that we care about incoming messages, right?
 
     // TODO Need confirm timer to send out messages every so often
     let confirmation_send_msg = messaging_obj.send_msg.clone();
     thread::spawn(move || {
-        confirmation_thread(confirmation_send_msg, confirmation_time);
+        confirmation_thread(&confirmation_send_msg, confirmation_time);
     });
 
     // loop over user input
     // based on commands, send out messages
     loop {
         let mut input = String::new();
-        io::stdin::().read_line(&mut input).expect("error: unable to read user input");
+        stdin().read_line(&mut input).expect("error: unable to read user input");
 
 
     }
@@ -197,8 +200,12 @@ fn run_propped_agreement(mut messaging_obj: messages::MessagingObjects) {
 fn run_thunderella_agreement(mut messaging_obj: messages::MessagingObjects) {
 }
 
-fn run_reliable_broadcast(mut messaging_obj: messages::MessagingObjects) {
-    
+fn run_tardigrade(mut messaging_obj: messages::MessagingObjects) {
+    let val = match messaging_obj.my_name.as_str() {
+        "node0" => tardigrade::reliable_broadcast_bb_sender(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id), 
+        _ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id),
+    };
+    info!("Reliable Broadcast Output: {:?}", val);
 }
 
 fn main() {
@@ -211,7 +218,7 @@ fn main() {
              .short("p")
              .long("protocol")
              .value_name("PROTOCOL")
-             .help("Sets which protocol to run. CONTROL, THUNDER, ASYNC, PROP, AGNOST")
+             .help("Sets which protocol to run. CONTROL, THUNDER, ASYNC, PROP, TARDI")
              .required(true)
              .takes_value(true))
         .arg(Arg::with_name("confirmation")
@@ -242,16 +249,18 @@ fn main() {
         "THUNDER" => Protocol::Thunderella,
         "PROP" => Protocol::Propped, 
         "CONTROL" | _ => Protocol::Control,
+        "TARDI" | _ => Protocol::Tardigrade,
     };
     info!("Running {:?} protocol.", active_protocol);
 
-    let confirmation_time = matches.value_of("confirmation").unwrap_or("10").parse::<i32>().unwrap();
+    let confirmation_time = matches.value_of("confirmation").unwrap_or("10").parse::<u64>().unwrap();
 
     match active_protocol {
         Protocol::Async => run_async_agreement(messaging_obj),
         Protocol::Control => run_control_server(messaging_obj, confirmation_time),
         Protocol::Propped => run_propped_agreement(messaging_obj),
         Protocol::Thunderella => run_thunderella_agreement(messaging_obj),
+        Protocol::Tardigrade => run_tardigrade(messaging_obj),
     };
 
 //    let t_s = messaging_obj.n / 2;

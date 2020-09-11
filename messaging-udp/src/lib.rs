@@ -30,6 +30,9 @@ pub enum Message {
     Sleep { name: String },
     Confirm { block: u32, b: Val },
     Wake { name : String },
+    EchoBB { v: Val, broadcaster: u32, echoer: u32},
+    ReadyBB { v: Val, broadcaster: u32, readier: u32},
+    ProposeBB { v: Val, broadcaster: u32 },
 }
 
 impl Message {
@@ -100,7 +103,7 @@ fn get_ips_from_etc_hosts(my_ip: String) -> Vec<String> {
     ips
 }
 
-fn get_my_party_num() -> String {
+fn get_my_party_num() -> u32 {
     let output = Command::new("bash")
                          .arg("-c")
                          .arg("hostname")
@@ -109,17 +112,18 @@ fn get_my_party_num() -> String {
     //let stdout = output.stdout;
     let stdout: String = String::from_utf8(output.stdout).unwrap();    
     let index = stdout.find('.').unwrap();
-    let num: i32 = stdout[index-1..index].parse().unwrap();
-    format!("{}", num+1)
+    let num: u32 = stdout[index-1..index].parse().unwrap();
+    num
 }
 
-fn get_my_hostname(my_party_num: String) -> String {
+fn get_my_hostname(my_party_num: u32) -> String {
     let ip = format!("10.10.1.{}:8080", my_party_num);
     ip
 }
 
 pub struct MessagingObjects {
     pub my_name: String,
+    pub my_id: u32,
     pub send_msg: mpsc::Sender<Message>,
     pub recv_msg: mpsc::Receiver<Message>,
     pub socket: UdpSocket,
@@ -163,6 +167,7 @@ pub fn setup_udp() -> MessagingObjects {
 
     MessagingObjects {
         my_name,
+        my_id: my_party_num,
         send_msg: sender_tx,
         recv_msg: listener_rx,
         socket,
