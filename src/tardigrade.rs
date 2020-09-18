@@ -17,6 +17,7 @@ pub fn reliable_broadcast_bb(send_msg: &mpsc::Sender<messages::Message>, recv_ms
         let mut ready_message_sent = false;
         
         if sender {
+            info!("Running tardigrade reliable broadcast SENDER protocol");
             val = messages::Val::One;
             let msg = messages::Message::ProposeBB {
                 v: val,
@@ -33,6 +34,8 @@ pub fn reliable_broadcast_bb(send_msg: &mpsc::Sender<messages::Message>, recv_ms
             };
             messages::send_message(msg, send_msg);
         }
+        
+        info!("Running tardigrade reliable broadcast RECEIVER protocol");
         
         loop {
             let msg = recv_msg.recv().unwrap();

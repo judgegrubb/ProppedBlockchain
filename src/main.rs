@@ -201,6 +201,7 @@ fn run_thunderella_agreement(mut messaging_obj: messages::MessagingObjects) {
 }
 
 fn run_tardigrade(mut messaging_obj: messages::MessagingObjects) {
+    info!("Running tardigrade reliable broadcast protocol");
     let val = match messaging_obj.my_name.as_str() {
         "node0" => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, true), 
         _ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, false),
@@ -248,8 +249,8 @@ fn main() {
         "ASYNC" => Protocol::Async,
         "THUNDER" => Protocol::Thunderella,
         "PROP" => Protocol::Propped, 
+        "TARDI" => Protocol::Tardigrade,
         "CONTROL" | _ => Protocol::Control,
-        "TARDI" | _ => Protocol::Tardigrade,
     };
     info!("Running {:?} protocol.", active_protocol);
 
