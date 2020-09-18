@@ -202,8 +202,8 @@ fn run_thunderella_agreement(mut messaging_obj: messages::MessagingObjects) {
 
 fn run_tardigrade(mut messaging_obj: messages::MessagingObjects) {
     let val = match messaging_obj.my_name.as_str() {
-        "node0" => tardigrade::reliable_broadcast_bb_sender(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id), 
-        _ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id),
+        "node0" => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, true), 
+        _ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, false),
     };
     info!("Reliable Broadcast Output: {:?}", val);
 }

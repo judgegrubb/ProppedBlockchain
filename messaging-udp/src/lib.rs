@@ -132,6 +132,8 @@ pub struct MessagingObjects {
     pub send_term: mpsc::Sender<String>,
     pub recv_term: mpsc::Sender<String>,
     pub n: u32,
+    pub t_s: u32,
+    pub t_a: u32,
 }
 
 pub fn setup_udp() -> MessagingObjects {
@@ -165,6 +167,12 @@ pub fn setup_udp() -> MessagingObjects {
 
     info!("setup complete");    
 
+    // setting t_s to maximum value s.t. t_s < n/2
+    let t_s = match num_of_parties % 2 {
+        1 => num_of_parties / 2,
+        _ => (num_of_parties / 2) - 1,
+    };
+
     MessagingObjects {
         my_name,
         my_id: my_party_num,
@@ -176,6 +184,8 @@ pub fn setup_udp() -> MessagingObjects {
         send_term: term_send_tx,
         recv_term: term_rcv_tx,
         n: num_of_parties,
+        t_s,
+        t_a: num_of_parties / 4,
     }
 }
 
