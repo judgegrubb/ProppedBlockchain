@@ -117,7 +117,7 @@ fn get_my_party_num() -> u32 {
 }
 
 fn get_my_hostname(my_party_num: u32) -> String {
-    let ip = format!("10.10.1.{}:8080", my_party_num);
+    let ip = format!("10.10.1.{}:8080", my_party_num + 1);
     ip
 }
 
