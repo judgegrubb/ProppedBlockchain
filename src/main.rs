@@ -29,119 +29,6 @@ enum Protocol {
     Tardigrade,
 }
 
-fn send_prepare(round: u32, val: messages::Val, send_msg: &mpsc::Sender<messages::Message>)  {
-    let msg = messages::Message::Prepare {
-        k: round,
-        b: val,
-    };
-    messages::send_message(msg, send_msg);
-}
-
-fn send_propose(round: u32, val: messages::Val, send_msg: &mpsc::Sender<messages::Message>)  {
-    let msg = messages::Message::Propose {
-        k: round,
-        b: val,
-    };
-    messages::send_message(msg, send_msg);
-}
-
-fn propose(send_msg: &mpsc::Sender<messages::Message>, recv_msg: &mut mpsc::Receiver<messages::Message>, val: messages::Val, round: u32, n: u32, t_s: u32) -> HashSet<messages::Val> {
-    info!("proposing {:?}", val);
-    let mut vals = HashSet::new();
-    let mut prepare_sent = HashSet::new();
-    let mut prepare_count = HashMap::new();
-    let mut propose_count = HashMap::new();
-    let mut prop = HashSet::new();
-
-    prepare_sent.insert(val);
-    prepare_count.insert(val, 1);
-
-    send_prepare(round, val, &send_msg);
-    
-    loop {
-        let msg = recv_msg.recv().unwrap();
-        info!("received message: {:?}", msg);
-        match msg {
-            messages::Message::Prepare { k, b } => {
-                if k != round {
-                    continue;
-                }
-                let count = prepare_count.entry(b).or_insert(1);
-                *count += 1;
-                if *count == t_s + 1 && !prepare_sent.contains(&b) {
-                    prepare_sent.insert(b);
-                    send_prepare(k, b, &send_msg);
-                }
-                if *count >= n - t_s && !vals.contains(&b) {
-                    let mut prop_count = 0;
-                    if vals.is_empty() {
-                        send_propose(k, b, &send_msg);
-                        prop_count = match propose_count.get(&b) {
-                            Some(j) => j + 1,
-                            None => 1,
-                        };
-                        propose_count.insert(b, prop_count);
-                    }
-                    vals.insert(b);
-                    if prop_count >= n - t_s {
-                        prop.insert(b);
-                        break;
-                    }
-                }
-            },
-            messages::Message::Propose { k, b } => {
-                if k != round {
-                    continue;
-                }
-                let count = match propose_count.get(&b) {
-                    Some(j) => j + 1,
-                    None => 1,
-                };
-                propose_count.insert(b, count);
-                if count >= n - t_s && vals.contains(&b) {
-                    prop.insert(b);
-                    break;
-                }
-            },
-            _ => continue,
-        };
-    }
-
-    info!("values agreed {:?}", prop);
-    prop
-}
-
-fn graded_consensus(send_msg: &mpsc::Sender<messages::Message>, recv_msg: &mut mpsc::Receiver<messages::Message>, val: messages::Val, round: u32, n: u32, t_s: u32) -> (messages::Val, u32) {
-    info!("gc input: {:?}", val);
-    let b_1 = val;
-    let prop_1 = propose(send_msg, recv_msg, b_1, round, n, t_s);
-    let b_2 = if prop_1.len() == 1 && prop_1.contains(&b_1) {
-        b_1
-    } else {
-        messages::Val::Lambda
-    };
-    let prop_2 = propose(send_msg, recv_msg, b_2, round+1, n, t_s);
-    if prop_2.len() == 2 {
-        let comp_one: HashSet<messages::Val> = vec![messages::Val::One, messages::Val::Lambda].into_iter().collect();
-        let comp_zero: HashSet<messages::Val> = vec![messages::Val::Zero, messages::Val::Lambda].into_iter().collect();
-        if prop_2.symmetric_difference(&comp_one).next().is_none() {
-            (messages::Val::One, 1)
-        } else if prop_2.symmetric_difference(&comp_zero).next().is_none() {
-            (messages::Val::Zero, 1)
-        } else {
-            (messages::Val::Lambda, 0)
-        }
-    } else if prop_2.len() == 1 {
-        match prop_2.iter().next().unwrap() {
-            messages::Val::Zero => (messages::Val::Zero, 2),
-            messages::Val::One => (messages::Val::One, 2),
-            messages::Val::Lambda => (messages::Val::Lambda, 0),
-        }
-    } else {
-        (messages::Val::Lambda, 0)
-    }
-}
-
 //fn async_byzantine_agreement(send_msg: &mpsc::Sender<String>, recv_msg: &mut mpsc::Receiver<String>, val: messages::Val, round: u32, n: u32, t_s: u32) -> (messages::Val, u32) {
 //}
 
@@ -167,13 +54,13 @@ fn confirmation_thread(send_msg: &mpsc::Sender<messages::Message>, confirmation_
     }
 }
 
-fn run_async_agreement(mut messaging_obj: messages::MessagingObjects) {
-}
+//fn run_async_agreement(messaging_obj: messages::MessagingObjects) {
+//}
 
 //TODO catch latency messages before putting them into channel
 //TODO set up keeping track of how much latency for each other person in LAN
 //TODO implement latency on specific messages based on src address
-fn run_control_server(mut messaging_obj: messages::MessagingObjects, confirmation_time: u64) {
+fn run_control_server(messaging_obj: messages::MessagingObjects, confirmation_time: u64) {
     // TODO spin off coinflip mechanism
     // This is the only piece that we care about incoming messages, right?
 
@@ -193,20 +80,26 @@ fn run_control_server(mut messaging_obj: messages::MessagingObjects, confirmatio
     }
 }
 
-fn run_propped_agreement(mut messaging_obj: messages::MessagingObjects) {
-}
+//fn run_propped_agreement(messaging_obj: messages::MessagingObjects) {
+//}
 
 
-fn run_thunderella_agreement(mut messaging_obj: messages::MessagingObjects) {
-}
+//fn run_thunderella_agreement(messaging_obj: messages::MessagingObjects) {
+//}
 
-fn run_tardigrade(mut messaging_obj: messages::MessagingObjects) {
-    info!("Running tardigrade reliable broadcast protocol");
-    let val = match messaging_obj.my_name.as_str() {
-        "node0" => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, true), 
-        _ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, false),
-    };
-    info!("Reliable Broadcast Output: {:?}", val);
+fn run_tardigrade(mut messaging_obj: messages::MessagingObjects, kappa: u32, delta: u32, payload_size: u32, batch_size: u32) {
+    info!("running tardigrade SMR protocol");
+
+    tardigrade::smr(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, messaging_obj.t_a, payload_size, batch_size, kappa, delta);
+    
+    
+    
+    
+    //let val = match messaging_obj.my_name.as_str() {
+        //"node0" => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, true), 
+        //_ => tardigrade::reliable_broadcast_bb(&messaging_obj.send_msg, &mut messaging_obj.recv_msg, true, messaging_obj.my_id, messaging_obj.n, messaging_obj.t_s, false),
+    //};
+    //info!("Reliable Broadcast Output: {:?}", val);
 }
 
 fn main() {
@@ -227,6 +120,30 @@ fn main() {
              .long("confirmation")
              .value_name("CONFIRMATION")
              .help("Sets the length of epochs for the underlying blockchain confirmation in seconds. Only the control server uses this parameter. Default is 10 seconds")
+             .takes_value(true))
+        .arg(Arg::with_name("kappa")
+             .short("k")
+             .long("kappa")
+             .value_name("KAPPA")
+             .help("set the kappa security param for synchronous protocols")
+             .takes_value(true))
+        .arg(Arg::with_name("delta")
+             .short("del")
+             .long("delta")
+             .value_name("DELTA")
+             .help("set the network bound in a synchronous protocol in seconds")
+             .takes_value(true))
+        .arg(Arg::with_name("batch")
+             .short("bat")
+             .long("batch")
+             .value_name("BATCH")
+             .help("set the batch size for our blockchain protocol")
+             .takes_value(true))
+        .arg(Arg::with_name("payload")
+             .short("pay")
+             .long("payload")
+             .value_name("PAYLOAD")
+             .help("size of the payloads in tardigrade")
              .takes_value(true))
         .get_matches();
     
@@ -255,13 +172,17 @@ fn main() {
     info!("Running {:?} protocol.", active_protocol);
 
     let confirmation_time = matches.value_of("confirmation").unwrap_or("10").parse::<u64>().unwrap();
+    let kappa = matches.value_of("kappa").unwrap_or("5").parse::<u32>().unwrap();
+    let delta = matches.value_of("delta").unwrap_or("50").parse::<u32>().unwrap();
+    let batch_size = matches.value_of("batch").unwrap_or("400").parse::<u32>().unwrap();
+    let payload_size = matches.value_of("payload").unwrap_or("0").parse::<u32>().unwrap();
 
     match active_protocol {
-        Protocol::Async => run_async_agreement(messaging_obj),
-        Protocol::Control => run_control_server(messaging_obj, confirmation_time),
-        Protocol::Propped => run_propped_agreement(messaging_obj),
-        Protocol::Thunderella => run_thunderella_agreement(messaging_obj),
-        Protocol::Tardigrade => run_tardigrade(messaging_obj),
+        //Protocol::Async => run_async_agreement(messaging_obj),
+        //Protocol::Propped => run_propped_agreement(messaging_obj),
+        //Protocol::Thunderella => run_thunderella_agreement(messaging_obj),
+        Protocol::Tardigrade => run_tardigrade(messaging_obj, kappa, delta, payload_size, batch_size),
+        _ => run_control_server(messaging_obj, confirmation_time),
     };
 
 //    let t_s = messaging_obj.n / 2;

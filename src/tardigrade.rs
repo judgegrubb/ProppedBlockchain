@@ -9,6 +9,269 @@ use std::collections::{HashMap, HashSet};
 struct BroadcasterVal(u32, messages::Val);
 
 use messaging_udp::messages;
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Transaction {
+    pub id: u32,
+    pub data: String,
+}
+
+pub struct Certificate {
+    
+}
+
+pub fn generate_transactions(payload_size: u32, batch_size: u32, num_parties: u32) -> HashSet<Transaction> {
+    return HashSet::new();
+}
+
+pub fn smr(send_msg: &mpsc::Sender<messages::Message>, 
+                      recv_msg: &mut mpsc::Receiver<messages::Message>, 
+                      my_id: u32, 
+                      num_parties: u32, 
+                      t_s: u32, 
+                      t_a: u32,
+                      payload_size: u32,
+                      batch_size: u32,
+                      kappa: u32,
+                      delta: u32) {
+
+    let mut epochs: HashMap<u32, u32> = HashMap::new();
+    let mut k = 1;
+
+    // for now, we are just going to do a single epoch
+    // start at time T_k = (\Delta + \kappa\Delta) * (k - 1)
+
+    // okay first we set up our data structures and collect our input data
+    // Epochs_i[k] := 1
+    epochs.insert(k, 1);
+    // \Beta := \emptyset
+    let mut beta: HashSet<Transaction> = HashSet::new();
+    // \Sigma := \emptyset
+    let mut sigma: HashSet<Transaction> = HashSet::new();
+    // buf_i is our input
+    // generate batch of inputs given L (batch_size) and n (number of parties)
+    let mut buf_i: HashSet<Transaction> = generate_transactions(payload_size, batch_size, num_parties);
+
+    // threshold encrypt buffer C_j
+    // multicast C_j
+
+    // then we send our encrypted buffer to everyone and collect everyone else's buffers
+    // while |\Sigma| <= t_s + t_a and T < T_k + \Delta
+    //      UPON receiving (k, C_i) from P_i
+    //          if sig is valid and its the first one from P_i in epoch k
+    //              add it to \Beta and add sig to \Sigma
+
+    // At time T_k + \Delta (so we should have everyone's buffers)
+    // now we run BLA on (\Beta,\Sigma)
+    let mut (new_beta, new_sigma) = bla(send_msg, recv_msg, beta, sigma, kappa, delta, num_parties, my_id);
+
+    // while T < T_k + \Delta + (\kappa*\Delta)
+    //      if BLA produces t_s + t_a - valid output
+    //          set \Beta*,\Sigma* to it
+
+    // at time T_k + \Delta + (\kappa * \Delta)
+    //      if BLA did not produce valid output in time
+    //          set (\Beta*,\Sigma*) = (\Beta,\Sigma)
+    
+    // if BLA output is t_s valid then set (\Beta*,\Sigma*) to it
+
+    // else set (\Beta*,\Sigma*) = (\Beta,\Sigma)
+
+    // now run ACS on \Beta*
+    
+    // update Block_i[k] with ACS output
+    
+    // remove entries that were successfully committed from buf_i
+}
+
+pub fn bla(send_msg: &mpsc::Sender<messages::Message>, 
+           recv_msg: &mut mpsc::Receiver<messages::Message>, 
+           beta: HashSet<Transaction>, 
+           sigma: HashSet<Transaction>, 
+           kappa: u32, 
+           delta: u32,
+           num_parties: u32,
+           my_id: u32) -> (HashSet<Transaction>,HashSet<Transaction>) {
+    // k* round number based on security parameter kappa
+    let mut k_star = 0;
+    // \Beta* transactions
+    let mut b_star = beta;
+    // \Sigma* transactions but organized (?)
+    let mut s_star = sigma;
+    // Certificate
+    let mut c_star: Certificate = { };
+    //let mut c_star = HashSet<
+   
+    let mut k = 1;
+    while k <= kappa { 
+    //      at time 5k-5 * \Delta
+        let ((b_new, s_new, c_new), grade) = gc(send_msg, recv_msg, k_star, b_star, s_star, c_star, delta, num_parties, my_id);
+    //      at time 5k * \Delta 
+        if grade > 0 {
+            k_star = k;
+            b_star = b_new;
+            s_star = s_new;
+            c_star = c_new;
+        }
+        if grade == 2 {
+            (b_star,s_star)
+        }
+        k = k + 1;
+    }
+
+    (HashSet::new(),HashSet::new())
+}
+
+pub fn gc(send_msg: &mpsc::Sender<messages::Message>, 
+          recv_msg: &mut mpsc::Receiver<messages::Message>, 
+          k_prime: u32,
+          beta: HashSet<Transaction>, 
+          sigma: HashSet<Transaction>, 
+          c_prime: Certificate,
+          delta: u32,
+          num_parties: u32,
+          my_id: u32) -> ((HashSeet<Transaction>,HashSet<Transaction>,Certificate),u32) {
+    
+    let t = (num_parties + 1) / 2 + ((num_parties + 1) % 2 != 0); // let t = \ceil((n + 1)/2)
+    
+    // at time 0 run parallel executions of propose for senders P1, ... Pn 
+    // each using input (k',\Beta,\Sigma, C') each with output (\Beta_j, \Sigma_j)
+
+    // at time 3 * \Delta call leader(k) to obtain the response l
+    // if (\Beta_l, \Sigma_l) != null send commit(k, \Beta_l, \Sigma_l) to every party
+
+    // at time 4 * \Delta if at least t correctly formed commit messages for l from
+    // distinct parties have been received then form a k-certificate C for B_l, Sigma_l
+    // send notify k B_l Sigma_l C to every party
+    // output ((B_l, \Sigma_l, C),2) and terminate
+    
+    // at time 5 * \Delta if a correctly formed notify message (k, B, Sigma, C)
+    // has been received output ((B, \sigma, C), 1) and terminate
+    
+    // else output ((\bot),0) and terminate
+}
+
+pub fn propose(send_msg: &mpsc::Sender<messages::Message>, 
+               recv_msg: &mut mpsc::Receiver<messages::Message>, 
+               sender_id: u32,
+               k: u32,
+               beta: HashSet<Transaction>, 
+               sigma: HashSet<Transaction>, 
+               cert: Certificate,
+               delta: u32,
+               num_parties: u32,
+               t: u32,
+               my_id: u32) -> ((HashSeet<Transaction>,HashSet<Transaction>,Certificate)) {
+    // at time 0 send status for my_id = status(k, beta, sigma, cert) to sender_id
+
+    // at time \Delta if P* has received at least s >= t correctly formed status messages
+    // status_1, ..., status_t from distinct parties then P* sets
+    // m = (propose, status1, ..., status_t) and sends m to all parties
+
+    // at time 2 * \Delta if I receive a Propose message m from P*
+    // then send m to all parties
+    // otherwise output \bot
+    
+    // at time 3 * \Delta let m_j be the propose message from party j
+    // if t.e. j s.t. m_j != m output \bot
+
+    // otherwise let status_max = status(k', beta', sigma', cert') be the m
+    // with maximum k'
+    // output (beta', sigma')
+}
+
+pub fn acs_star(send_msg: &mpsc::Sender<messages::Message>, 
+           recv_msg: &mut mpsc::Receiver<messages::Message>, 
+           beta: HashSet<Transaction>, 
+           kappa: u32, 
+           delta: u32,
+           t_a: u32,
+           t_s: u32,
+           num_parties: u32,
+           my_id: u32) -> (HashSet<Transaction>,HashSet<Transaction>) {
+
+    // S_j = acs_star(beta)
+
+    // UPON S_j, multicast commit (S_j)
+    
+    // UPON receiving at least t_s + 1 sigs on commit(S)
+    // form a certificate sigma
+    // multicast sigma
+    // output S
+    // terminate
+    
+    // UPON receiving sigma for S
+    // multicast sigma
+    // output S
+    // terminate
+
+
+}
+
+pub fn acs_star(send_msg: &mpsc::Sender<messages::Message>, 
+           recv_msg: &mut mpsc::Receiver<messages::Message>, 
+           beta: HashSet<Transaction>, 
+           kappa: u32, 
+           delta: u32,
+           t_a: u32,
+           t_s: u32,
+           num_parties: u32,
+           my_id: u32) -> (HashSet<Transaction>,HashSet<Transaction>) {
+
+    // let S* = {i : BA_i output 1}
+    // let s = |S*|
+   
+    // boolean conditions:
+    // C_1(v): at least n - t_s executions {Bcast_i} have output v
+    // C_1: t.e. v for which C_1(v) is true
+    // C_2(v): s >= n - t_a, all executions {BA_i} have terminated, majority of {Bcast_i} executions have output v
+    // C_2: t.e. v for which C_2(v) is true
+    // C_3: s >= n - t_a, all executions {BA_i} have terminated, all executions {Bcast_i} have terminated
+
+    // for all i
+    //      run Bcast_i with P_i as the sender, where P_i uses input v_i
+    //      when Bcast_i terminates with output v'_i:
+    //          if BA_i has not begin:
+    //              run BA_i using input 1
+    // When s >= n - t_a run any executions of BA_i that have not yet begun
+    //      with input 0
+    
+    // Exit 1: if at any point C_1(v) = true for some v, ouptut {v}
+    // Exit 2: if at any point !C_1 && C_2(v) for some v, output {v}
+    // Exit 3: if at any point !C_1 && !C_2 && C_3, output S := {v'_i}_{i \in S*}
+    
+
+    // after outputting
+    //      continue to participate in any ongoing Bcast executions
+    //      once C_1 == true stop participating in any ongoing BA executions
+
+}
+
+pub fn bb(send_msg: &mpsc::Sender<messages::Message>,
+          recv_msg: &mut mpsc::Receiver<messages::Message>,
+          sender_id: u32,
+          beta: HashSet<Transaction>, 
+          t_s: u32,
+          num_parties: u32,
+          my_id: u32) -> HashSet<Transaction> {
+    
+    // if sender send beta to all
+
+    // upon receiving v* from sender send echo(v*) to all parties
+    
+    // upon receiving echo(v*) on same v* from n - t_s parties:
+    //      if ready(v*) has not been sent
+    //          send ready(v*) to all parties
+
+    // upon receiving ready(v*) on same v* from t_s + 1 parties:
+    //      if ready(v*) has not been sent
+    //          send ready(v*) to all parties
+
+    // upon receiving ready(v*) on same v* from n - t_s parties:
+    //      output v* and terminate
+}
+
+
 pub fn reliable_broadcast_bb(send_msg: &mpsc::Sender<messages::Message>, recv_msg: &mut mpsc::Receiver<messages::Message>, honest: bool, my_id: u32, num_parties: u32, t_s: u32, sender: bool) -> messages::Val {
     let mut val = messages::Val::Lambda;
     if honest {

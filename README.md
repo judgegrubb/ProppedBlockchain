@@ -13,7 +13,8 @@ For EACH emulab machine:
 1. Log into it
 2. Run `sudo su -` (you should now be at /root, also make sure you're in bash)
 3. Install rust `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-4. Put the binaries into our current path `source $HOME/.cargo/env`
+4. Put the binaries into our current path `source /root/.cargo/env`
+5. Move to area of file system maintained by disk snapshots `cd /local/`
 5. Clone our github repo `git clone https://github.com/judgegrubb/ProppedBlockchain.git`
 6. `cd ProppedBlockchain/`
 7. `cargo build`
