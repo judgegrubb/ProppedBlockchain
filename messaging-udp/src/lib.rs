@@ -17,6 +17,22 @@ pub enum Val {
     Lambda,
 }
 
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct Transaction {
+    pub id: u32,
+    pub data: [u8], // byte array
+}
+
+pub struct Signature {
+    pub party_id: u32,
+    pub signature: [u8],
+}
+
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct Certificate {
+    pub parties: HashSet<u32>,
+}
+
 //TODO add a timestamp t to Prepare, Propose, and Coin for latency adding purposes
 //TODO also add to prepare implementation and parse_message
 //TODO add a user tag so we know who we're receiving from
@@ -33,6 +49,14 @@ pub enum Message {
     EchoBB { v: Val, broadcaster: u32, echoer: u32},
     ReadyBB { v: Val, broadcaster: u32, readier: u32},
     ProposeBB { v: Val, broadcaster: u32 },
+    TardiProposeStatus { smrK: u32, k: u32, B: HashSet<Transaction>, Sig: HashSet<Signature>, C: Certificate, sender_id: u32, proposer_id: u32 } ,
+    TardiProposePropose { smrK: u32, k: u32, Statuses: HashSet<Message::TardiProposeStatus>, sender_id: u32, proposer_id: u32 },
+    TardiBBPropose { smrK: u32, broadcaster_id: u32, v: HashSet<Transaction> },
+    TardiBBEcho { smrK: u32, broadcaster_id: u32, echoer_id: u32, v: HashSet<Transaction> },
+    TardiBBReady { smrK: u32, broadcaster_id: u32, readier_id: u32, v: HashSet<Transaction> },
+    TardiSMRMulticast { smrK: u32, B: HashSet<Transaction>, Sig: HashSet<Signature>, sender_id: u32 },
+    TardiGCCommit { smrK: u32, k: u32, B: HashSet<Transaction>, Sig: HashSet<Signature>, committer_id: u32 },
+    TardiGCNotify { smrK: u32, k: u32, B: HashSet<Transaction>, Sig: HashSet<Signature>, Cert: Certificate, notifier_id: u32 },
 }
 
 impl Message {
